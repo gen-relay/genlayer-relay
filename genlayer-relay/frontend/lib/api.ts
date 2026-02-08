@@ -15,71 +15,78 @@ export interface VerifyResponse {
 }
 
 // ----------------- BASE URL -----------------
-// Detect Codespace preview automatically
 const BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
+  import.meta.env.VITE_API_URL ||
   (typeof window !== "undefined" && window.location.hostname.endsWith(".app.github.dev")
     ? `https://${window.location.hostname.split("-")[0]}-3000.app.github.dev`
     : "http://localhost:3000");
 
 console.log("API BASE_URL:", BASE_URL);
 
+// ----------------- HELPER: RETRY & ERROR HANDLING -----------------
+const handleRequest = async <T>(
+  fn: () => Promise<T>,
+  fallback?: T,
+  retries = 2,
+  delayMs = 500
+): Promise<T> => {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        console.error(`Axios Error (attempt ${attempt + 1}):`, err.message, err.response?.data);
+      } else {
+        console.error(`Unexpected Error (attempt ${attempt + 1}):`, err);
+      }
+      if (attempt < retries) await new Promise((res) => setTimeout(res, delayMs));
+    }
+  }
+  console.warn("All attempts failed, returning fallback value.");
+  return fallback as T;
+};
+
 // ----------------- API OBJECT -----------------
 export const api = {
   // ----------------- PRICES -----------------
   getPrices: async (vs: string = "usd") => {
-    try {
-      const res = await axios.get(`${BASE_URL}/prices`, { params: { vs } });
+    return handleRequest(async () => {
+      const res = await axios.get(`${BASE_URL}/prices`, { params: { vs }, timeout: 7000 });
       return res.data;
-    } catch (err: any) {
-      console.error("Error fetching prices:", err.message);
-      return { error: err.message };
-    }
+    }, { error: "Failed to fetch prices" });
   },
 
   // ----------------- WEATHER -----------------
   getWeather: async (city: string) => {
-    try {
-      const res = await axios.get(`${BASE_URL}/weather`, { params: { city } });
+    return handleRequest(async () => {
+      const res = await axios.get(`${BASE_URL}/weather`, { params: { city }, timeout: 7000 });
       return res.data;
-    } catch (err: any) {
-      console.error("Error fetching weather:", err.message);
-      return { error: err.message };
-    }
+    }, { error: "Failed to fetch weather" });
   },
 
   // ----------------- RANDOMNESS -----------------
   getRandom: async () => {
-    try {
-      const res = await axios.get(`${BASE_URL}/random`);
+    return handleRequest(async () => {
+      const res = await axios.get(`${BASE_URL}/random`, { timeout: 7000 });
       return res.data;
-    } catch (err: any) {
-      console.error("Error fetching randomness:", err.message);
-      return { error: err.message };
-    }
+    }, { error: "Failed to fetch random value" });
   },
 
   // ----------------- SIGN -----------------
   signMessage: async (message: string, secret: string): Promise<SignResponse> => {
     if (!message || !secret) return { error: "Message and secret required", status: "ok" };
-    try {
-      const res = await axios.post(`${BASE_URL}/sign`, { message, secret });
+    return handleRequest(async () => {
+      const res = await axios.post(`${BASE_URL}/sign`, { message, secret }, { timeout: 7000 });
       return res.data as SignResponse;
-    } catch (err: any) {
-      console.error("Error signing message:", err.message);
-      return { error: err.message, status: "ok" };
-    }
+    }, { error: "Failed to sign message", status: "ok" });
   },
 
   // ----------------- VERIFY -----------------
   verifySignature: async (message: string, signature: string, secret: string): Promise<VerifyResponse> => {
     if (!message || !signature || !secret) return { error: "All fields required", status: "ok" };
-    try {
-      const res = await axios.post(`${BASE_URL}/verify`, { message, signature, secret });
+    return handleRequest(async () => {
+      const res = await axios.post(`${BASE_URL}/verify`, { message, signature, secret }, { timeout: 7000 });
       return res.data as VerifyResponse;
-    } catch (err: any) {
-      console.error("Error verifying signature:", err.message);
-      return { error: err.message, status: "ok" };
-    }
+    }, { error: "Failed to verify signature", status: "ok" });
   },
 };

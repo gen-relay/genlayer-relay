@@ -1,5 +1,10 @@
-import React from "react";
-import { createRoot } from "react-dom/client";
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import './index.css'
+import App from './App.tsx'
 
-const root = createRoot(document.getElementById("root")!);
-root.render(<h1>GenLayer Relay UI</h1>);
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+)

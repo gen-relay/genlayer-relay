@@ -1,6 +1,6 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
-import staticPlugin from "@fastify/static";
+import fastifyStatic from "@fastify/static";
 import path from "path";
 import { config } from "dotenv";
 import { z } from "zod";
@@ -38,37 +38,40 @@ async function start() {
   const app = Fastify({ logger: true });
 
   // ----------------- CORS -----------------
-  await app.register(cors, { origin: true });
+  await app.register(cors, { origin: "*", credentials: true });
 
-  // ----------------- API ROUTES -----------------
+  // ----------------- REGISTER API ROUTES -----------------
   app.register(pricesRoutes, { prefix: "/prices" });
   app.register(weatherRoutes, { prefix: "/weather" });
   app.register(randomnessRoutes, { prefix: "/random" });
   app.register(verifyRoutes, { prefix: "/verify" });
   app.register(signRoutes, { prefix: "/sign" });
 
-  // ----------------- STATIC FRONTEND -----------------
-  const frontendDist = path.resolve(__dirname, "../../frontend/dist");
-
-  await app.register(staticPlugin, {
-    root: frontendDist,
-    prefix: "/",          // serve assets
+  // ----------------- SERVE FRONTEND -----------------
+  const frontendBuild = path.join(__dirname, "../../frontend/build");
+  await app.register(fastifyStatic, {
+    root: frontendBuild,
+    prefix: "/",
   });
 
-  // SPA fallback (MUST be after static plugin)
-  app.setNotFoundHandler((req, reply) => {
-    reply.sendFile("index.html");
-  });
+  // SPA fallback for React/Vite/CRA routing
+  app.setNotFoundHandler((req, reply) => reply.sendFile("index.html"));
 
+  // ----------------- HEALTHCHECK -----------------
+  app.get("/health", async () => ({ status: "ok", message: "Backend is live" }));
+
+  // ----------------- START SERVER -----------------
   const PORT = Number(ENV.PORT || 3000);
-
   try {
     await app.listen({ port: PORT, host: "0.0.0.0" });
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
+    console.log(`🚀 GenLayer Relay Backend running at http://0.0.0.0:${PORT}`);
   } catch (err) {
     app.log.error(err);
     process.exit(1);
   }
 }
 
-start();
+start().catch((err) => {
+  console.error("❌ Failed to start backend:", err);
+  process.exit(1);
+});
