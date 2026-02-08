@@ -14,15 +14,48 @@ export interface VerifyResponse {
   status?: string;
 }
 
+export interface PriceData {
+  [base: string]: {
+    [quote: string]: number | null;
+  };
+}
+
+export interface PriceResponse {
+  status: string;
+  base: string;
+  quote: string;
+  data: PriceData;
+  timestamp: number;
+}
+
+export interface PriceOptions {
+  status: string;
+  crypto: string[];
+  fx: string[];
+  stocks: string[];
+}
+
+export interface WeatherResponse {
+  status: string;
+  city: string;
+  data?: any;
+  timestamp?: number;
+  message?: string;
+}
+
+export interface RandomResponse {
+  status: string;
+  random?: string;
+  entropy?: string;
+  timestamp?: number;
+  message?: string;
+}
+
 // ----------------- BASE URL -----------------
-// Empty string = SAME ORIGIN (this is the key)
-const BASE_URL = "";
+const BASE_URL = ""; // same origin
 
 // ----------------- HELPER -----------------
-const handleRequest = async <T>(
-  fn: () => Promise<T>,
-  fallback?: T
-): Promise<T> => {
+const handleRequest = async <T>(fn: () => Promise<T>, fallback?: T): Promise<T> => {
   try {
     const result = await fn();
     console.log("✅ API success:", result);
@@ -35,52 +68,64 @@ const handleRequest = async <T>(
 
 // ----------------- API OBJECT -----------------
 export const api = {
-  // ----------------- PRICES -----------------
-  getPrices: async (vs: string = "usd") =>
+  // ----------------- PRICE OPTIONS -----------------
+  getPriceOptions: async (): Promise<PriceOptions> =>
     handleRequest(
       async () => {
-        console.log("➡️ GET /prices");
+        console.log("➡️ GET /prices/options");
+        const res = await axios.get(`${BASE_URL}/prices/options`, { timeout: 7000 });
+        return res.data;
+      },
+      { status: "error", crypto: [], fx: [], stocks: [] }
+    ),
+
+  // ----------------- GET PRICE -----------------
+  getPrice: async (base: string, quote: string): Promise<PriceResponse> =>
+    handleRequest(
+      async () => {
+        console.log(`➡️ GET /prices?base=${base}&quote=${quote}`);
         const res = await axios.get(`${BASE_URL}/prices`, {
-          params: { vs },
+          params: { base, quote },
           timeout: 7000,
         });
         return res.data;
       },
-      { error: "Failed to fetch prices" }
+      {
+        status: "error",
+        base,
+        quote,
+        data: {},
+        timestamp: Date.now(),
+      }
     ),
 
   // ----------------- WEATHER -----------------
-  getWeather: async (city: string) =>
+  getWeather: async (city: string): Promise<WeatherResponse> =>
     handleRequest(
       async () => {
-        console.log("➡️ GET /weather");
+        console.log(`➡️ GET /weather?city=${city}`);
         const res = await axios.get(`${BASE_URL}/weather`, {
           params: { city },
           timeout: 7000,
         });
         return res.data;
       },
-      { error: "Failed to fetch weather" }
+      { status: "error", city, message: "Failed to fetch weather" }
     ),
 
   // ----------------- RANDOMNESS -----------------
-  getRandom: async () =>
+  getRandom: async (): Promise<RandomResponse> =>
     handleRequest(
       async () => {
         console.log("➡️ GET /random");
-        const res = await axios.get(`${BASE_URL}/random`, {
-          timeout: 7000,
-        });
+        const res = await axios.get(`${BASE_URL}/random`, { timeout: 7000 });
         return res.data;
       },
-      { error: "Failed to fetch random value" }
+      { status: "error", message: "Failed to fetch random value" }
     ),
 
   // ----------------- SIGN -----------------
-  signMessage: async (
-    message: string,
-    secret: string
-  ): Promise<SignResponse> =>
+  signMessage: async (message: string, secret: string): Promise<SignResponse> =>
     handleRequest(
       async () => {
         console.log("➡️ POST /sign");
@@ -95,11 +140,7 @@ export const api = {
     ),
 
   // ----------------- VERIFY -----------------
-  verifySignature: async (
-    message: string,
-    signature: string,
-    secret: string
-  ): Promise<VerifyResponse> =>
+  verifySignature: async (message: string, signature: string, secret: string): Promise<VerifyResponse> =>
     handleRequest(
       async () => {
         console.log("➡️ POST /verify");
