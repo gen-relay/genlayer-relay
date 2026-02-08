@@ -1,21 +1,37 @@
-html, body, #root {
-  margin:0;padding:0;width:100%;height:100%;
-  font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background: linear-gradient(135deg,#0f0c29,#302b63,#24243e);
-  color:#fff; display:flex; justify-content:center; align-items:center; overflow:auto;
-}
-.app-wrapper { width:100vw;height:100vh; display:flex; justify-content:center; align-items:center; padding:0; box-sizing:border-box;}
+/* Wrapper & page */
+html, body, #root { margin:0;padding:0;width:100%;height:100%; font-family:'Segoe UI', sans-serif; background: linear-gradient(135deg,#0f0c29,#302b63,#24243e); color:#fff; display:flex; justify-content:center; align-items:center; overflow:auto;}
+.app-wrapper { width:100vw;height:100vh; display:flex; justify-content:center; align-items:center; }
 .page-container { width:clamp(90%,95vw,1200px); padding:2rem; display:flex; flex-direction:column; gap:2rem; overflow-y:auto; }
-.page-container h1 { font-size:2.5rem;color:#ff8c00; }
+.page-container h1 { font-size:2.5rem;color:#ff8c00;margin-bottom:1rem;}
 .page-container h2 { font-size:1.5rem;color:#ffa500;margin-bottom:0.5rem; }
 
+/* Section */
 section { background:rgba(139,69,19,0.35); border:1px solid rgba(255,255,255,0.1); border-radius:0.8rem; padding:1rem 1.5rem; backdrop-filter:blur(12px) saturate(180%); box-shadow:0 0 15px rgba(0,0,0,0.5); }
-.horizontal-controls { display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap; margin-bottom:0.5rem; }
+
+/* Controlled row */
+.controlled-row { display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; margin-bottom:0.5rem; }
+.search-dropdown input { padding:0.5rem; border-radius:0.5rem; border:1px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.05); color:#fff; min-width:120px; }
+.search-dropdown input::placeholder { color:rgba(255,255,255,0.6); }
+
+/* Buttons */
 button { cursor:pointer; background:rgba(255,140,0,0.7); border:none; border-radius:0.5rem; padding:0.6rem 1rem; color:#fff; font-weight:600; transition:0.2s; }
 button:hover:not(:disabled){ background:rgba(255,140,0,0.95); transform:scale(1.05);}
 button:disabled{opacity:0.5; cursor:not-allowed;}
-input[type=text], select { padding:0.5rem; border-radius:0.5rem; border:1px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.05); color:#fff; }
+
+/* Result */
 .result-display { margin-top:0.3rem; padding:0.5rem 1rem; background:rgba(255,255,255,0.05); border-radius:0.5rem; font-weight:600; text-align:center; }
+
+.dropdown-container { position: relative; width: 150px; }
+.dropdown-header { padding: 0.5rem; background: rgba(255,255,255,0.05); border-radius:0.5rem; cursor: pointer; }
+.dropdown-body { position: absolute; top: 100%; left: 0; right: 0; background: rgba(0,0,0,0.8); border-radius:0.5rem; margin-top:0.2rem; max-height:200px; overflow-y:auto; z-index:100; }
+.dropdown-search { width: 100%; padding:0.3rem; margin-bottom:0.2rem; border-radius:0.3rem; border:none; outline:none; }
+.dropdown-option { padding:0.5rem; cursor:pointer; }
+.dropdown-option:hover { background: rgba(255,140,0,0.5); }
+
+/* Premium glow */
 .premium-section { border:2px solid #ff8c00; animation: glow 2s infinite alternate;}
 @keyframes glow{0%{box-shadow:0 0 10px #ff8c00;}100%{box-shadow:0 0 25px #ff4500;}}
-@media(max-width:600px){.horizontal-controls{flex-direction:column; gap:0.5rem;} input, select, button{width:100%;}}
+
+/* Responsive */
+@media(max-width:600px){.controlled-row{flex-direction:column; gap:0.5rem;} input, select, button{width:100%;}}
+

@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import type { SignResponse, PriceOptions } from "../lib/api";
+import type { SignResponse, VerifyResponse, PriceOptions } from "../lib/api";
 import { api } from "../lib/api";
 import { premiumApi } from "./premium/premiumApi";
+import SearchableDropdown from "./components/SearchableDropdown";
 import "./App.css";
 
 function App() {
@@ -70,7 +71,7 @@ function App() {
 
   const handleVerify = async () => {
     setLoadingVerify(true);
-    const res = await api.verifySignature(message, signature, secret);
+    const res: VerifyResponse = await api.verifySignature(message, signature, secret);
     setVerifyResult(res?.valid ? "✅ Signature valid" : "❌ Signature invalid");
     setLoadingVerify(false);
   };
@@ -90,18 +91,27 @@ function App() {
         {/* Prices */}
         <section>
           <h2>💰 Prices</h2>
-          <div className="horizontal-controls">
-            <select value={crypto} onChange={e=>setCrypto(e.target.value)}>
-              {priceOptions?.crypto.map(c=><option key={c} value={c}>{c}</option>)}
-            </select>
-            <select value={fx} onChange={e=>setFx(e.target.value)}>
-              {priceOptions?.fx.map(f=><option key={f} value={f}>{f}</option>)}
-            </select>
-            <select value={stocks} onChange={e=>setStocks(e.target.value)}>
-              {priceOptions?.stocks.map(s=><option key={s} value={s}>{s}</option>)}
-            </select>
+          <div className="controlled-row">
+            <SearchableDropdown 
+              options={priceOptions?.crypto || []} 
+              value={crypto} 
+              onChange={setCrypto} 
+              placeholder="Crypto" 
+            />
+            <SearchableDropdown 
+              options={priceOptions?.fx || []} 
+              value={fx} 
+              onChange={setFx} 
+              placeholder="FX" 
+            />
+            <SearchableDropdown 
+              options={priceOptions?.stocks || []} 
+              value={stocks} 
+              onChange={setStocks} 
+              placeholder="Stocks" 
+            />
             <button onClick={fetchPrice} disabled={loadingPrices}>
-              {loadingPrices?"Loading...":"Refresh Prices"}
+              {loadingPrices ? "Loading..." : "Search Price"}
             </button>
           </div>
           <div className="result-display">{price}</div>
@@ -110,7 +120,7 @@ function App() {
         {/* Weather */}
         <section>
           <h2>☀️ Weather</h2>
-          <div className="horizontal-controls">
+          <div className="controlled-row">
             <input type="text" value={city} onChange={e=>setCity(e.target.value)} placeholder="City"/>
             <button onClick={fetchWeather} disabled={loadingWeather}>
               {loadingWeather?"Loading...":"Get Weather"}
@@ -131,7 +141,7 @@ function App() {
         {/* Sign & Verify */}
         <section>
           <h2>✍️ Sign & Verify</h2>
-          <div className="horizontal-controls">
+          <div className="controlled-row">
             <input type="text" value={message} onChange={e=>setMessage(e.target.value)} placeholder="Message"/>
             <input type="text" value={secret} onChange={e=>setSecret(e.target.value)} placeholder="Secret"/>
             <button onClick={handleSign} disabled={loadingSign}>
@@ -153,6 +163,7 @@ function App() {
           </button>
           <div className="result-display">{premiumData}</div>
         </section>
+
       </div>
     </div>
   );
