@@ -1,26 +1,27 @@
 import { FastifyPluginAsync } from "fastify";
 import crypto from "crypto";
 
-// ----------------- MODELS -----------------
-interface VerifyPayload {
-  message: string;
-  signature: string;
-  secret: string;
-}
+// ----------------- ENV -----------------
+const SIGN_SECRET = process.env.SIGN_SECRET || "";
 
 // ----------------- PLUGIN -----------------
 export const verifyRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post("/", async (request, reply) => {
-    const { message, signature, secret } = request.body as VerifyPayload;
+    const { message, signature } = request.body as { message?: string; signature?: string };
 
-    if (!message || !signature || !secret) {
+    if (!SIGN_SECRET) {
+      reply.code(500);
+      return { status: "error", message: "SIGN_SECRET missing in .env" };
+    }
+
+    if (!message || !signature) {
       reply.code(400);
-      return { error: "Missing message, signature, or secret" };
+      return { status: "error", message: "Missing message or signature" };
     }
 
     try {
       const expected = crypto
-        .createHmac("sha256", secret)
+        .createHmac("sha256", SIGN_SECRET)
         .update(message)
         .digest("hex");
 
@@ -36,7 +37,7 @@ export const verifyRoutes: FastifyPluginAsync = async (fastify) => {
       };
     } catch (err: any) {
       reply.code(500);
-      return { error: err.message };
+      return { status: "error", message: err.message };
     }
   });
 };
