@@ -5,7 +5,7 @@
 
   color-scheme: light dark;
   color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  background-color: #000000; /* true black */
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -28,6 +28,7 @@ body {
   place-items: center;
   min-width: 320px;
   min-height: 100vh;
+  background-color: #000000; /* ensure body matches root */
 }
 
 h1 {
@@ -35,6 +36,7 @@ h1 {
   line-height: 1.1;
 }
 
+/* ----------------- BUTTONS ----------------- */
 button {
   border-radius: 8px;
   border: 1px solid transparent;
@@ -42,27 +44,31 @@ button {
   font-size: 1em;
   font-weight: 500;
   font-family: inherit;
-  background-color: #1a1a1a;
+  background-color: #2c2c2c; /* less shiny dark color */
+  color: #ffffff;
   cursor: pointer;
-  transition: border-color 0.25s;
+  transition: all 0.25s ease-in-out;
 }
 button:hover {
   border-color: #646cff;
+  background-color: #3a3a3a;
 }
 button:focus,
 button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
+/* ----------------- LIGHT MODE ----------------- */
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;
-    background-color: #ffffff;
+    background-color: #f5f5f5; /* light background fallback */
   }
   a:hover {
     color: #747bff;
   }
   button {
-    background-color: #f9f9f9;
+    background-color: #d4d4d4;
+    color: #000000;
   }
 }
