@@ -1,10 +1,12 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
+import staticPlugin from "@fastify/static";
+import path from "path";
 import { config } from "dotenv";
 import { z } from "zod";
 
 // ----------------- LOAD ENV -----------------
-const result = config({ path: __dirname + "/../.env" });
+const result = config({ path: path.join(__dirname, "../.env") });
 if (result.error) {
   console.error("❌ Failed to load .env file:", result.error);
   process.exit(1);
@@ -17,7 +19,6 @@ const envSchema = z.object({
 });
 
 const envParse = envSchema.safeParse(process.env);
-
 if (!envParse.success) {
   console.error("❌ Invalid environment variables:", envParse.error.format());
   process.exit(1);
@@ -37,33 +38,37 @@ async function start() {
   const app = Fastify({ logger: true });
 
   // ----------------- CORS -----------------
-  await app.register(cors, { origin: "*", credentials: true });
+  await app.register(cors, { origin: true });
 
-  // ----------------- REGISTER ROUTES -----------------
+  // ----------------- API ROUTES -----------------
   app.register(pricesRoutes, { prefix: "/prices" });
   app.register(weatherRoutes, { prefix: "/weather" });
   app.register(randomnessRoutes, { prefix: "/random" });
   app.register(verifyRoutes, { prefix: "/verify" });
   app.register(signRoutes, { prefix: "/sign" });
 
-  // ----------------- ROOT -----------------
-  app.get("/", async () => ({
-    status: "ok",
-    message: "GenLayer Relay Backend is live",
-  }));
+  // ----------------- STATIC FRONTEND -----------------
+  const frontendDist = path.resolve(__dirname, "../../frontend/dist");
+
+  await app.register(staticPlugin, {
+    root: frontendDist,
+    prefix: "/",          // serve assets
+  });
+
+  // SPA fallback (MUST be after static plugin)
+  app.setNotFoundHandler((req, reply) => {
+    reply.sendFile("index.html");
+  });
 
   const PORT = Number(ENV.PORT || 3000);
 
   try {
     await app.listen({ port: PORT, host: "0.0.0.0" });
-    console.log(`🚀 GenLayer Relay running at http://0.0.0.0:${PORT}`);
+    console.log(`🚀 Server running on http://localhost:${PORT}`);
   } catch (err) {
-    console.error("❌ Failed to start server:", err);
+    app.log.error(err);
     process.exit(1);
   }
 }
 
-start().catch((err) => {
-  console.error("❌ Failed to start app:", err);
-  process.exit(1);
-});
+start();

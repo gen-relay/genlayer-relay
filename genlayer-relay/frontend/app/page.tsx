@@ -1,58 +1,45 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { api } from "../lib/api";
-
-type SignResponse = {
-    signature: string;
-      error?: string;
-      };
-
-type VerifyResponse = {
-     valid: boolean;
-     message: string;
-      };
-
+import { api, SignResponse, VerifyResponse } from "../lib/api";
 
 export default function HomePage() {
-  const [prices, setPrices] = useState<any>(null);
-  const [weather, setWeather] = useState<any>(null);
+  const [prices, setPrices] = useState<any>({});
+  const [weather, setWeather] = useState<any>({});
   const [random, setRandom] = useState<any>(null);
   const [message, setMessage] = useState("");
   const [secret, setSecret] = useState("");
   const [signature, setSignature] = useState("");
-  const [verifyResult, setVerifyResult] = useState<any>(null);
+  const [verifyResult, setVerifyResult] = useState<VerifyResponse | null>(null);
   const [city, setCity] = useState("London");
 
-  // Fetch Prices
+  // ----------------- FETCH -----------------
   const fetchPrices = async () => {
     const data = await api.getPrices("usd");
     setPrices(data);
   };
 
-  // Fetch Weather
   const fetchWeather = async () => {
     const data = await api.getWeather(city);
     setWeather(data);
   };
 
-  // Fetch Randomness
   const fetchRandom = async () => {
     const data = await api.getRandom();
     setRandom(data);
   };
 
-  // Sign Message
+  // ----------------- SIGN -----------------
   const handleSign = async () => {
-  const res = (await api.signMessage(message, secret)) as SignResponse;
-  if (!res.error) setSignature(res.signature);
-        };
-  
-  // Verify Signature
+    const res: SignResponse = await api.signMessage(message, secret);
+    if (res && !res.error && res.signature) setSignature(res.signature);
+  };
+
+  // ----------------- VERIFY -----------------
   const handleVerify = async () => {
-  const res = (await api.verifySignature(message, signature, secret)) as VerifyResponse;
-  setVerifyResult(res);
-        };
+    const res: VerifyResponse = await api.verifySignature(message, signature, secret);
+    if (res) setVerifyResult(res);
+  };
 
   useEffect(() => {
     fetchPrices();
@@ -61,20 +48,16 @@ export default function HomePage() {
   }, []);
 
   return (
-    <div style={{ padding: "2rem", fontFamily: "Arial, sans-serif" }}>
+    <div className="page-container">
       <h1>GenLayer Relay Dashboard</h1>
 
-      {/* ================= PRICES ================= */}
-      <section style={{ marginBottom: "2rem" }}>
+      <section>
         <h2>Prices (USD)</h2>
         <button onClick={fetchPrices}>Refresh Prices</button>
-        <pre style={{ background: "#f5f5f5", padding: "1rem" }}>
-          {JSON.stringify(prices, null, 2)}
-        </pre>
+        <pre>{JSON.stringify(prices, null, 2)}</pre>
       </section>
 
-      {/* ================= WEATHER ================= */}
-      <section style={{ marginBottom: "2rem" }}>
+      <section>
         <h2>Weather</h2>
         <input
           type="text"
@@ -83,46 +66,34 @@ export default function HomePage() {
           placeholder="City"
         />
         <button onClick={fetchWeather}>Get Weather</button>
-        <pre style={{ background: "#f5f5f5", padding: "1rem" }}>
-          {JSON.stringify(weather, null, 2)}
-        </pre>
+        <pre>{JSON.stringify(weather, null, 2)}</pre>
       </section>
 
-      {/* ================= RANDOMNESS ================= */}
-      <section style={{ marginBottom: "2rem" }}>
+      <section>
         <h2>Randomness</h2>
         <button onClick={fetchRandom}>Get Random Value</button>
-        <pre style={{ background: "#f5f5f5", padding: "1rem" }}>
-          {JSON.stringify(random, null, 2)}
-        </pre>
+        <pre>{JSON.stringify(random, null, 2)}</pre>
       </section>
 
-      {/* ================= SIGNATURE ================= */}
-      <section style={{ marginBottom: "2rem" }}>
+      <section>
         <h2>Sign & Verify Message</h2>
         <input
           type="text"
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           placeholder="Message"
-          style={{ width: "100%", marginBottom: "0.5rem" }}
         />
         <input
           type="text"
           value={secret}
           onChange={(e) => setSecret(e.target.value)}
           placeholder="Secret"
-          style={{ width: "100%", marginBottom: "0.5rem" }}
         />
         <button onClick={handleSign}>Sign Message</button>
-        <pre style={{ background: "#f5f5f5", padding: "1rem" }}>
-          Signature: {signature}
-        </pre>
+        <pre>Signature: {signature || "Not signed yet"}</pre>
 
         <button onClick={handleVerify}>Verify Signature</button>
-        <pre style={{ background: "#f5f5f5", padding: "1rem" }}>
-          {verifyResult ? JSON.stringify(verifyResult, null, 2) : "Not verified yet"}
-        </pre>
+        <pre>{verifyResult ? JSON.stringify(verifyResult, null, 2) : "Not verified yet"}</pre>
       </section>
     </div>
   );

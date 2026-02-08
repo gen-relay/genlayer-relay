@@ -1,0 +1,18 @@
+{
+  "name": "genlayer-frontend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/main.tsx --bundle --minify --sourcemap --outdir=dist --loader:.tsx=tsx --define:process.env.NODE_ENV=\\\"production\\\" && cp index.html dist/index.html",
+    "watch": "esbuild src/main.tsx --bundle --outdir=dist --loader:.tsx=tsx --watch"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.20.0",
+    "typescript": "^5.0.0"
+  }
+}
