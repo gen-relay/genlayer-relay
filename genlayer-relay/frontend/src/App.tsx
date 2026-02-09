@@ -15,9 +15,9 @@ function App() {
   const [verifyResult, setVerifyResult] = useState<string>(""); 
   const [premiumData, setPremiumData] = useState<string>(""); 
   const [priceOptions, setPriceOptions] = useState<PriceOptions | null>(null);
-  const [crypto, setCrypto] = useState("bitcoin"); 
-  const [fx, setFx] = useState("usd"); 
-  const [stocks, setStocks] = useState("AAPL"); 
+  const [crypto, setCrypto] = useState("CRYPTO"); 
+  const [fx, setFx] = useState("STABLE & FX"); 
+  const [stocks, setStocks] = useState("STOCKS"); 
 
   const [loadingPrices, setLoadingPrices] = useState(false);
   const [loadingWeather, setLoadingWeather] = useState(false);
@@ -95,20 +95,22 @@ function App() {
             <SearchableDropdown 
               options={priceOptions?.crypto || []} 
               value={crypto} 
-              onChange={setCrypto} 
-              placeholder="Crypto" 
+              onChange={val => { setCrypto(val); setStocks(""); }}
+              placeholder="Crypto"
+              disabled={!!stocks} // NEW: disable if stock selected
             />
             <SearchableDropdown 
               options={priceOptions?.fx || []} 
               value={fx} 
               onChange={setFx} 
               placeholder="FX" 
+              disabled={!!stocks} // NEW: disable if stock selected
             />
             <SearchableDropdown 
               options={priceOptions?.stocks || []} 
               value={stocks} 
-              onChange={setStocks} 
-              placeholder="Stocks" 
+              onChange={val => { setStocks(val); setCrypto(""); setFx("usd"); }}
+              placeholder="Stocks"
             />
             <button onClick={fetchPrice} disabled={loadingPrices}>
               {loadingPrices ? "Loading..." : "Search Price"}

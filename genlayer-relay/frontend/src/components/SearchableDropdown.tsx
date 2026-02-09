@@ -1,4 +1,10 @@
-import { useState, useRef, useEffect, type KeyboardEvent } from "react";
+import {
+  useState,
+  useRef,
+  useEffect,
+  useMemo,
+  type KeyboardEvent,
+} from "react";
 import { createPortal } from "react-dom";
 
 interface Props {
@@ -6,6 +12,7 @@ interface Props {
   value: string;
   onChange: (val: string) => void;
   placeholder?: string;
+  disabled?: boolean; 
 }
 
 export default function SearchableDropdown({
@@ -13,33 +20,51 @@ export default function SearchableDropdown({
   value,
   onChange,
   placeholder,
+  disabled = false,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState("");
+  const [debouncedFilter, setDebouncedFilter] = useState("");
   const [hoverIndex, setHoverIndex] = useState(0);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
 
-  const filtered = options.filter(o =>
-    o.toLowerCase().includes(filter.toLowerCase())
-  );
-
-  // Close on outside click (header scope only)
+  /* -------------------------------------------------
+   * FIX 1 — Lock body scroll when dropdown is open
+   * ------------------------------------------------- */
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(e.target as Node)
-      ) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () =>
-      document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    if (!open) return;
 
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [open]);
+
+  /* -------------------------------------------------
+   * Debounce filter
+   * ------------------------------------------------- */
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedFilter(filter), 150);
+    return () => clearTimeout(t);
+  }, [filter]);
+
+  /* -------------------------------------------------
+   * Memoized + capped filtering
+   * ------------------------------------------------- */
+  const filtered = useMemo(() => {
+    const f = debouncedFilter.toLowerCase();
+    return options
+      .filter(o => o.toLowerCase().includes(f))
+      .slice(0, 50);
+  }, [options, debouncedFilter]);
+
+  /* -------------------------------------------------
+   * Keyboard navigation
+   * ------------------------------------------------- */
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (!open || filtered.length === 0) return;
 
@@ -47,7 +72,7 @@ export default function SearchableDropdown({
       setHoverIndex(prev => (prev + 1) % filtered.length);
     } else if (e.key === "ArrowUp") {
       setHoverIndex(prev => (prev - 1 + filtered.length) % filtered.length);
-    } else if (e.key === "Enter" && filtered[hoverIndex]) {
+    } else if (e.key === "Enter") {
       onChange(filtered[hoverIndex]);
       setOpen(false);
     } else if (e.key === "Escape") {
@@ -58,93 +83,55 @@ export default function SearchableDropdown({
   const handleClear = (e: React.MouseEvent) => {
     e.stopPropagation();
     setFilter("");
+    setDebouncedFilter("");
     onChange("");
   };
 
-  const headerRect = headerRef.current?.getBoundingClientRect();
+  // const headerRect = headerRef.current?.getBoundingClientRect();
 
   return (
     <div className="dropdown-container" ref={containerRef}>
       <div
         ref={headerRef}
-        className="dropdown-header"
-        onClick={() => setOpen(prev => !prev)}
+        className={`dropdown-header ${disabled ? "disabled" : ""}`}
+        onClick={() => !disabled && setOpen(prev => !prev)}
       >
-        {value || placeholder || "Select..."}
-        {value && (
-          <span className="clear-btn" onClick={handleClear}>
-            ×
-          </span>
+        {value || placeholder || "Select…"}
+        {value && !disabled && (
+          <span className="clear-btn" onClick={handleClear}>×</span>
         )}
       </div>
 
       {open &&
         createPortal(
           <>
-            {/* Full-screen backdrop */}
+            {/* Backdrop */}
             <div
               className="dropdown-backdrop"
-              onClick={() => setOpen(false)}
+              onClick={e => { e.stopPropagation(); setOpen(false); }}
             />
 
-            {/* Overlay dropdown (viewport anchored, centered) */}
-            <div
-              className="dropdown-body"
-              style={{
-                position: "fixed",
-
-                // Anchor just below the trigger
-                top: headerRect
-                  ? headerRect.bottom + 12
-                  : "50%",
-
-                // TRUE horizontal center of trigger
-                left: headerRect
-                  ? headerRect.left + headerRect.width / 2
-                  : "50%",
-
-                transform: "translate(-50%, 0)",
-
-                // Fully responsive + clamped
-                width: "clamp(280px, min(90vw, 420px), 520px)",
-                maxHeight: "clamp(240px, 50vh, 420px)",
-
-                padding: "0.75rem",
-                borderRadius: "0.75rem",
-                boxSizing: "border-box",
-
-                zIndex: 999,
-              }}
-            >
+            {/* Skeleton Dropdown Body */}
+            <div className="dropdown-body">
               <input
                 type="text"
                 value={filter}
-                onChange={e => {
-                  setFilter(e.target.value);
-                  setHoverIndex(0);
-                }}
+                onChange={e => { setFilter(e.target.value); setHoverIndex(0); }}
                 onKeyDown={handleKeyDown}
-                placeholder="Search asset…"
+                placeholder="Search…"
                 className="dropdown-search"
                 autoFocus
+                disabled={disabled}
               />
 
               <div className="dropdown-options">
-                {filtered.length === 0 && (
-                  <div className="dropdown-option">No results</div>
-                )}
-
+                {filtered.length === 0 && <div className="dropdown-option">No results</div>}
                 {filtered.map((opt, i) => (
                   <div
                     key={opt}
-                    className={`dropdown-option ${
-                      i === hoverIndex ? "hovered" : ""
-                    }`}
+                    className={`dropdown-option ${i === hoverIndex ? "hovered" : ""}`}
                     onMouseEnter={() => setHoverIndex(i)}
-                    onClick={() => {
-                      onChange(opt);
-                      setOpen(false);
-                    }}
+                    onClick={() => { onChange(opt); setOpen(false); }}
                   >
                     {opt}
                   </div>
