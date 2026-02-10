@@ -12,6 +12,8 @@ const fxCache: Set<string> = new Set([
 const priceCache = new Map<string, any>();
 const CACHE_TTL = 60; // seconds
 
+let coinListCache: { timestamp: number; data: CoinGeckoCoin[] } | null = null;
+const COIN_LIST_TTL = 60; // seconds
 // ----------------- HELPER: SYMBOL → ID -----------------
 // Fully dynamic: fetch CoinGecko ID by symbol on demand
 export async function getCryptoIdFromSymbol(symbol: string): Promise<string | null> {
@@ -62,22 +64,20 @@ const cacheKey = (base: string, quote: string) =>
   `price:${base.toLowerCase()}-${quote.toLowerCase()}`;
 
 // ----------------- LOAD CRYPTO LIST -----------------
-async function loadCryptoCache() {
+async function loadCryptoCache(): Promise<void> {
   const nowTs = Math.floor(Date.now() / 1000);
 
   // Use cache if it's fresh
   if (coinListCache && nowTs - coinListCache.timestamp < COIN_LIST_TTL) {
   cryptoCache = {};
-  coinListCache.data.forEach((coin) => {
+  coinListCache.data.forEach((coin: CoinGeckoCoin) => {
   cryptoCache[coin.id.toLowerCase()] = coin.symbol.toLowerCase();
   });
   return;
   }
 
   try {
-  const res = await axios.get<CoinGeckoCoin[]>(COINGECKO_LIST_URL, {
-  timeout: 10000,
-  });
+  const res = await axios.get<CoinGeckoCoin[]>(COINGECKO_LIST_URL, { timeout: 10000 });
 
   // save to cache
   coinListCache = {
@@ -87,7 +87,7 @@ async function loadCryptoCache() {
 
   // update cryptoCache
   cryptoCache = {};
-  res.data.forEach((coin) => {
+  res.data.forEach((coin: CoinGeckoCoin) => {
   cryptoCache[coin.id.toLowerCase()] = coin.symbol.toLowerCase();
   });
 
@@ -96,6 +96,7 @@ async function loadCryptoCache() {
   console.error("Failed to load crypto cache:", e);
   }
   }
+
 
 // ----------------- LOAD STOCK LIST -----------------
 async function loadStockCache(apiKey?: string) {
