@@ -70,14 +70,14 @@ async function loadCryptoCache(): Promise<void> {
   const nowTs = Math.floor(Date.now() / 1000);
 
   // Use cache if it's fresh
-  if (coinListCache && nowTs - coinListCache.timestamp < COIN_LIST_TTL) {
-  cryptoCache = {};
-  res.data.forEach((coin: CoinGeckoCoin) => {
+ if (coinListCache && nowTs - coinListCache.timestamp < COIN_LIST_TTL) {
+    cryptoCache = {};
+    coinListCache.data.forEach((coin: CoinGeckoCoin) => {
     cryptoCache[coin.symbol.toLowerCase()] = coin;
-    });
-  return;
-  }
-
+           });
+              return;
+              }
+ 
   try {
   const res = await axios.get<CoinGeckoCoin[]>(COINGECKO_LIST_URL, { timeout: 10000 });
 
