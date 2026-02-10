@@ -37,15 +37,16 @@ import { signRoutes } from "./sign";
 import { loadCryptoCache, loadStockCache } from "./prices";
 
 const apiKey = process.env.FINNHUB_API_KEY || "";
-(async () => { 
-try {
-  await loadCryptoCache();
+    (async () => { 
+        try {
+// crypto cache now loads lazily on first /prices call
     await loadStockCache(apiKey);
-      console.log("Preloaded crypto & stock caches");
-      } catch (err) {
-        console.error("Failed to preload caches:", err);
-        }
-})();
+    console.log("Preloaded stock cache");
+            } catch (err) {
+    console.error("Failed to preload caches:", err);
+                          }
+              })();
+
 // ----------------- START SERVER -----------------
 async function start() {
   const app = Fastify({ logger: true });
@@ -83,7 +84,7 @@ async function start() {
   const PORT = Number(ENV.PORT || 3000);
   try {
     await app.listen({ port: PORT, host: "0.0.0.0" });
-    console.log(`🚀 GenLayer Relay Backend running at http://0.0.0.0:${PORT}`);
+    console.log(` GenLayer Relay Backend running at http://0.0.0.0:${PORT}`);
   } catch (err) {
     app.log.error(err);
     process.exit(1);
@@ -91,6 +92,6 @@ async function start() {
 }
 
 start().catch((err) => {
-  console.error("❌ Failed to start backend:", err);
+  console.error(" Failed to start backend:", err);
   process.exit(1);
 });
