@@ -75,8 +75,8 @@ async function loadCryptoCache(): Promise<void> {
     coinListCache.data.forEach((coin: CoinGeckoCoin) => {
     cryptoCache[coin.symbol.toLowerCase()] = coin;
            });
-              return;
-              }
+    return;
+            }
  
   try {
   const res = await axios.get<CoinGeckoCoin[]>(COINGECKO_LIST_URL, { timeout: 10000 });
