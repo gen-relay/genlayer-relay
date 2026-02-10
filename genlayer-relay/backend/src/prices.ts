@@ -9,13 +9,14 @@ const fxCache: Set<string> = new Set([
 ]);
 
 const STABLECOINS: Record<string, string> = {
-    USDT: "USD",
-    USDC: "USD",
-    BUSD: "USD",
-    DAI: "USD"
-              };
+    USDT: "USDT",
+    USDC: "USDC",
+    BUSD: "BUSD",
+    DAI: "DAI"
+               };
 
-const normalizeStablecoin = (symbol: string) => STABLECOINS[symbol.toUpperCase()] || symbol;
+const normalizeStablecoin = (symbol: string) =>
+      STABLECOINS[symbol.toUpperCase()] || symbol.toUpperCase();
 
 // short-lived price cache (prevents UI jitter)
 const priceCache = new Map<string, any>();
@@ -169,30 +170,31 @@ async function getStock(symbol: string, apiKey: string) {
 
 async function getFX(base: string, quote: string) {
   const res = await axios.get<FXResponse>(FX_URL, {
-    params: {
-    base: base.toUpperCase(),
-    symbols: quote.toUpperCase()
-            },
-    timeout: 10000
+  params: { base, symbols: quote.toUpperCase() },
+  timeout: 10000
   });
 
-  const rate = res.data?.rates?.[quote.toUpperCase()];
-    if (rate == null) {
-        throw new Error(`FX rate not found for ${base}/${quote}`);
-          }
+  let rate = res.data?.rates?.[quote.toUpperCase()];
+
+  if (rate == null && base.toUpperCase() !== "USD" && quote.toUpperCase() !== "USD") {
+  const pivotRes = await axios.get<FXResponse>(FX_URL, {
+  params: { base: "USD", symbols: `${base.toUpperCase()},${quote.toUpperCase()}` },
+  timeout: 10000
+  });
+  const baseRate = pivotRes.data.rates?.[base.toUpperCase()];
+  const quoteRate = pivotRes.data.rates?.[quote.toUpperCase()];
+  if (baseRate != null && quoteRate != null) {
+  rate = quoteRate / baseRate;
+  }
+  }
+
+  if (rate == null) throw new Error(`FX rate not found for ${base}/${quote}`);
 
   return {
-    price: rate,
-    change: {
-      "5m": null,
-      "30m": null,
-      "1h": null,
-      "12h": null,
-      "24h": null
-    }
+  price: rate,
+  change: { "5m": null, "30m": null, "1h": null, "12h": null, "24h": null }
   };
-}
-
+  }
 // ----------------- PLUGIN -----------------
 export const pricesRoutes: FastifyPluginAsync = async (fastify) => {
 
@@ -240,31 +242,25 @@ export const pricesRoutes: FastifyPluginAsync = async (fastify) => {
 
     let payload;
 
- 
-// ---- STOCK  ----
-await loadStockCache(apiKey);
-if (stockCache.has(base.toUpperCase())) {
-if (!apiKey) {
-reply.code(400);
-return { status: "error", message: "Stock pricing unavailable (API key missing)" };
-}
-payload = await getStock(base.toUpperCase(), apiKey);
-}
-
-// ---- FX----
-else if (fxCache.has(base.toUpperCase())) {
-payload = await getFX(base.toUpperCase(), quote.toUpperCase());
-}
-
-// ---- CRYPTO ----
-else {
-const cryptoId = await getCryptoIdFromSymbol(base);
-if (!cryptoId) {
-reply.code(400);
-return { status: "error", message: `Unsupported base asset: ${base}` };
-}
-payload = await getCrypto(cryptoId, quote.toLowerCase());
-}
+if (fxCache.has(baseNorm.toUpperCase()) || STABLECOINS[baseNorm.toUpperCase()]) {
+  payload = await getFX(baseNorm.toUpperCase(), quoteNorm.toUpperCase());
+  } else if (cryptoCache[baseNorm.toLowerCase()]) {
+  // Crypto branch
+  const cryptoId = await getCryptoIdFromSymbol(baseNorm);
+  payload = await getCrypto(cryptoId!, quoteNorm.toLowerCase());
+  } else {
+  // Stock fallback
+  await loadStockCache(apiKey);
+  if (!stockCache.has(baseNorm.toUpperCase())) {
+  reply.code(400);
+  return { status: "error", message: `Unsupported base asset: ${baseNorm}` };
+  }
+  if (!apiKey) {
+  reply.code(400);
+  return { status: "error", message: "Stock pricing unavailable (API key missing)" };
+  }
+  payload = await getStock(baseNorm.toUpperCase(), apiKey);
+  }
 
     const response = {
       status: "ok",
@@ -294,31 +290,23 @@ const apiKey = process.env.FINNHUB_API_KEY || "";
 
 let payload;
 
-
-// ---- STOCK  ----
-await loadStockCache(apiKey);
-if (stockCache.has(base.toUpperCase())) {
-if (!apiKey) {
-reply.code(400);
-return { status: "error", message: "Stock pricing unavailable (API key missing)" };
-}
-payload = await getStock(base.toUpperCase(), apiKey);
-}
-
-// ---- FX----
-else if (fxCache.has(base.toUpperCase())) {
-payload = await getFX(base.toUpperCase(), quote.toUpperCase());
-}
-
-// ---- CRYPTO ----
-else {
-const cryptoId = await getCryptoIdFromSymbol(base);
-if (!cryptoId) {
-reply.code(400);
-return { status: "error", message: `Unsupported base asset: ${base}` };
-}
-payload = await getCrypto(cryptoId, quote.toLowerCase());
-}
+if (fxCache.has(baseNorm.toUpperCase()) || STABLECOINS[baseNorm.toUpperCase()]) {
+  payload = await getFX(baseNorm.toUpperCase(), quoteNorm.toUpperCase());
+  } else if (cryptoCache[baseNorm.toLowerCase()]) {
+  const cryptoId = await getCryptoIdFromSymbol(baseNorm);
+  payload = await getCrypto(cryptoId!, quoteNorm.toLowerCase());
+  } else {
+  await loadStockCache(apiKey);
+  if (!stockCache.has(baseNorm.toUpperCase())) {
+  reply.code(400);
+  return { status: "error", message: `Unsupported base asset: ${baseNorm}` };
+  }
+  if (!apiKey) {
+  reply.code(400);
+  return { status: "error", message: "Stock pricing unavailable (API key missing)" };
+  }
+  payload = await getStock(baseNorm.toUpperCase(), apiKey);
+  }
 
 const response = {
 status: "ok",
