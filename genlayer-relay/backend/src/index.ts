@@ -8,7 +8,7 @@ import { z } from "zod";
 // ----------------- LOAD ENV -----------------
 const result = config({ path: path.join(__dirname, "../.env") });
 if (result.error) {
-  console.error("❌ Failed to load .env file:", result.error);
+  console.error(" Failed to load .env file:", result.error);
   process.exit(1);
 }
 
@@ -21,7 +21,7 @@ const envSchema = z.object({
 
 const envParse = envSchema.safeParse(process.env);
 if (!envParse.success) {
-  console.error("❌ Invalid environment variables:", envParse.error.format());
+  console.error(" Invalid environment variables:", envParse.error.format());
   process.exit(1);
 }
 
@@ -41,9 +41,9 @@ const apiKey = process.env.FINNHUB_API_KEY || "";
 try {
   await loadCryptoCache();
     await loadStockCache(apiKey);
-      console.log("✅ Preloaded crypto & stock caches");
+      console.log("Preloaded crypto & stock caches");
       } catch (err) {
-        console.error("❌ Failed to preload caches:", err);
+        console.error("Failed to preload caches:", err);
         }
 })();
 // ----------------- START SERVER -----------------
