@@ -62,17 +62,34 @@ function App() {
       const res = await api.getPrice(base.toLowerCase(), quote.toLowerCase());
 
       if (res?.status === "ok") {
-        let displayPrice = 0;
+        let displayPrice: number | null = null;
 
-        if (crypto && !stocks && res.data?.[crypto.toLowerCase()]?.[quote.toLowerCase()]) {
-          displayPrice = res.data?.[crypto.toLowerCase()]?.[quote.toLowerCase()] ?? 0;
-        } else if (stocks && res.data?.[stocks]?.[quote.toLowerCase()]) {
-          displayPrice = res.data?.[stocks]?.[quote.toLowerCase()] ?? 0;
-        } else if (fx && res.data?.[fx.toLowerCase()]?.[quote.toLowerCase()]) {
-          displayPrice = res.data?.[fx.toLowerCase()]?.[quote.toLowerCase()] ?? 0
+        if (crypto && !stocks) {
+          displayPrice =
+          res.data?.[crypto.toLowerCase()]?.[quote.toLowerCase()] ?? null;
+          }
+
+          // STOCKS
+          else if (stocks) {
+          const stockData = res.data?.[stocks];
+          displayPrice =
+          stockData?.price ??
+          stockData?.last ??
+          stockData?.close ??
+          null;
+          }
+
+          // FX
+          else if (fx) {
+          displayPrice =
+          res.data?.[fx.toLowerCase()]?.[quote.toLowerCase()] ?? null;
+          }
+
+          if (displayPrice === null) {
+          setPrice("Price not available ❌");
+          } else {
+          setPrice(`${base.toUpperCase()}/${quote.toUpperCase()}: ${displayPrice} 💸`);
         }
-
-        setPrice(`${base.toUpperCase()}/${quote.toUpperCase()}: ${displayPrice} 💸`);
       } else {
         setPrice("Price not available ❌");
       }
@@ -150,7 +167,7 @@ function App() {
   return (
     <div className="app-wrapper">
       <div className="page-container">
-        <h1>GenLayer Relay Dashboard 🚀</h1>
+        <h1>GenLayer Relay Dashboard </h1>
 
         {/* Prices */}
         <section className="price-section">
@@ -226,7 +243,7 @@ function App() {
         <section className="premium-section">
           <h2>💎 Premium</h2>
           <button onClick={fetchPremium} disabled={loadingPremium}>
-            {loadingPremium ? "Loading..." : "Activate Premium"}
+            {loadingPremium ? "Loading..." : "Stay Tuned"}
           </button>
           <div className="result-display">{premiumData}</div>
         </section>

@@ -12,6 +12,13 @@ const fxCache: Set<string> = new Set([
 const priceCache = new Map<string, any>();
 const CACHE_TTL = 60; // seconds
 
+// ----------------- HELPER: SYMBOL → ID -----------------
+function getCryptoIdFromSymbol(symbol: string) {
+  const lowerSymbol = symbol.toLowerCase();
+    return Object.keys(cryptoCache).find(
+        (id) => cryptoCache[id].toLowerCase() === lowerSymbol
+          );
+          }
 // ----------------- API URLS -----------------
 const COINGECKO_LIST_URL = "https://api.coingecko.com/api/v3/coins/list";
 const COINGECKO_PRICE_URL = "https://api.coingecko.com/api/v3/simple/price";
@@ -184,9 +191,10 @@ export const pricesRoutes: FastifyPluginAsync = async (fastify) => {
     let payload;
 
     // ---- CRYPTO ----
-    if (cryptoCache[base.toLowerCase()]) {
-      payload = await getCrypto(base.toLowerCase(), quote.toLowerCase());
-    }
+    const cryptoId = getCryptoIdFromSymbol(base);
+    if (cryptoId) {
+      payload = await getCrypto(cryptoId, quote.toLowerCase());
+      }
 
     // ---- FX ----
     else if (fxCache.has(base.toUpperCase())) {

@@ -41,11 +41,11 @@ async function start() {
   await app.register(cors, { origin: "*", credentials: true });
 
   // ----------------- REGISTER API ROUTES -----------------
-  app.register(pricesRoutes, { prefix: "/prices" });
-  app.register(weatherRoutes, { prefix: "/weather" });
-  app.register(randomnessRoutes, { prefix: "/random" });
-  app.register(verifyRoutes, { prefix: "/verify" });
-  app.register(signRoutes, { prefix: "/sign" });
+  app.register(pricesRoutes, { prefix: "/api/prices" });
+  app.register(weatherRoutes, { prefix: "/api/weather" });
+  app.register(randomnessRoutes, { prefix: "/api/random" });
+  app.register(verifyRoutes, { prefix: "/api/verify" });
+  app.register(signRoutes, { prefix: "/api/sign" });
 
   // ----------------- SERVE FRONTEND -----------------
   const frontendBuild = path.join(__dirname, "../../frontend/dist");
@@ -54,8 +54,14 @@ async function start() {
     prefix: "/",
   });
 
-  // SPA fallback for React/Vite/CRA routing
-  app.setNotFoundHandler((req, reply) => reply.sendFile("index.html"));
+ // SPA fallback ONLY for frontend routes
+ app.setNotFoundHandler((req, reply) => {
+   if (req.url.startsWith("/api")) {
+   reply.code(404).send({ error: "API route not found" });
+   } else {
+   reply.sendFile("index.html");
+          }
+   });
 
   // ----------------- HEALTHCHECK -----------------
   app.get("/health", async () => ({ status: "ok", message: "Backend is live" }));
