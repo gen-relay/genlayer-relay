@@ -13,23 +13,20 @@ const priceCache = new Map<string, any>();
 const CACHE_TTL = 60; // seconds
 
 // ----------------- HELPER: SYMBOL → ID -----------------
-export function getCryptoIdFromSymbol(symbol: string) {
+// Fully dynamic: fetch CoinGecko ID by symbol on demand
+export async function getCryptoIdFromSymbol(symbol: string): Promise<string | null> {
+  try {
+  const res = await axios.get<CoinGeckoCoin[]>(COINGECKO_LIST_URL, { timeout: 10000 });
   const lowerSymbol = symbol.toLowerCase();
-  const id = Object.keys(cryptoCache).find(
-  (id) => cryptoCache[id].toLowerCase() === lowerSymbol
-  );
-  if (id) return id;
+  const coin = res.data.find(c => c.symbol.toLowerCase() === lowerSymbol);
+      return coin ? coin.id : null;
+      } catch (e) {
+  console.error("Failed to fetch CoinGecko list:", e);
+      return null;
+      }
+                  }
 
-  // fallback for top coins if cache isn't loaded yet
-  const topCoins: Record<string, string> = {
-   btc: "bitcoin",
-   eth: "ethereum",
-   usdt: "tether",
-   bnb: "binancecoin",
-   ada: "cardano",
-        };
-        return topCoins[lowerSymbol] || null;
-        }
+ 
 // ----------------- API URLS -----------------
 const COINGECKO_LIST_URL = "https://api.coingecko.com/api/v3/coins/list";
 const COINGECKO_PRICE_URL = "https://api.coingecko.com/api/v3/simple/price";
@@ -66,17 +63,39 @@ const cacheKey = (base: string, quote: string) =>
 
 // ----------------- LOAD CRYPTO LIST -----------------
 async function loadCryptoCache() {
-    if (Object.keys(cryptoCache).length) return;
-    try {
-    const res = await axios.get<CoinGeckoCoin[]>(COINGECKO_LIST_URL, { timeout: 10000 });
-    res.data.forEach((coin) => {
-    cryptoCache[coin.id.toLowerCase()] = coin.symbol.toLowerCase();
-    });
-    console.log("Crypto cache loaded:", Object.keys(cryptoCache).length, "coins");
-    } catch (e) {
-    console.error(" Failed to load crypto cache:", e);
-                }
-                }
+  const nowTs = Math.floor(Date.now() / 1000);
+
+  // Use cache if it's fresh
+  if (coinListCache && nowTs - coinListCache.timestamp < COIN_LIST_TTL) {
+  cryptoCache = {};
+  coinListCache.data.forEach((coin) => {
+  cryptoCache[coin.id.toLowerCase()] = coin.symbol.toLowerCase();
+  });
+  return;
+  }
+
+  try {
+  const res = await axios.get<CoinGeckoCoin[]>(COINGECKO_LIST_URL, {
+  timeout: 10000,
+  });
+
+  // save to cache
+  coinListCache = {
+  timestamp: nowTs,
+  data: res.data,
+  };
+
+  // update cryptoCache
+  cryptoCache = {};
+  res.data.forEach((coin) => {
+  cryptoCache[coin.id.toLowerCase()] = coin.symbol.toLowerCase();
+  });
+
+  console.log("Crypto cache loaded:", Object.keys(cryptoCache).length, "coins");
+  } catch (e) {
+  console.error("Failed to load crypto cache:", e);
+  }
+  }
 
 // ----------------- LOAD STOCK LIST -----------------
 async function loadStockCache(apiKey?: string) {
@@ -95,18 +114,22 @@ async function loadStockCache(apiKey?: string) {
   }
 
 // ----------------- PRICE RESOLVERS -----------------
-async function getCrypto(base: string, quote: string) {
+async function getCrypto(coinId: string, quote: string) {
+    // ensure quote is lowercase
+      const quoteLower = quote.toLowerCase();
+
   const res = await axios.get<CoinGeckoPrice>(COINGECKO_PRICE_URL, {
     params: {
-      ids: base,
-      vs_currencies: quote,
-      include_24hr_change: true
-    },
+    ids: coinId,      
+    vs_currencies: quoteLower,
+    include_24hr_change: true
+            },
     timeout: 10000
-  });
+           });
+    
 
-  const price = res.data?.[base]?.[quote] ?? null;
-  const change24h = res.data?.[base]?.[`${quote}_24h_change`] ?? 0;
+  const price = res.data?.[coinId]?.[quoteLower] ?? null;
+  const change24h = res.data?.[coinId]?.[`${quoteLower}_24h_change`] ?? 0;
 
   return {
     price,
@@ -195,6 +218,7 @@ export const pricesRoutes: FastifyPluginAsync = async (fastify) => {
     const quote = query.quote || "USD";
 
     const key = cacheKey(base, quote);
+    priceCache.delete(key);
     const cached = priceCache.get(key);
 
     if (cached && now() - cached.timestamp < CACHE_TTL) {
@@ -207,8 +231,9 @@ export const pricesRoutes: FastifyPluginAsync = async (fastify) => {
     let payload;
 
     // ---- CRYPTO ----
-    const cryptoId = getCryptoIdFromSymbol(base);
-    console.log(" /prices request:", base, quote, "cryptoId:", cryptoId);  // <-- ADD THIS
+    const cryptoId = await getCryptoIdFromSymbol(base);
+    console.log("/prices request:", base, quote, "resolved cryptoId:", cryptoId);
+
     if (cryptoId) {
         payload = await getCrypto(cryptoId, quote.toLowerCase());
         }
@@ -255,6 +280,7 @@ export const pricesRoutes: FastifyPluginAsync = async (fastify) => {
 fastify.get("/:base/:quote", async (req, reply) => {
 const { base, quote } = req.params as { base: string; quote: string };
 const key = cacheKey(base, quote);
+priceCache.delete(key);
 const cached = priceCache.get(key);
 
 if (cached && now() - cached.timestamp < CACHE_TTL) {
@@ -267,7 +293,9 @@ const apiKey = process.env.FINNHUB_API_KEY || "";
 let payload;
 
 // ---- CRYPTO ----
-const cryptoId = getCryptoIdFromSymbol(base);
+const cryptoId = await getCryptoIdFromSymbol(base);
+console.log(" /prices request:", base, quote, "resolved cryptoId:", cryptoId);
+
 if (cryptoId) {
 payload = await getCrypto(cryptoId, quote.toLowerCase());
 }
