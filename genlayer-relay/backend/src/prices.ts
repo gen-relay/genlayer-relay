@@ -241,11 +241,21 @@ stocks // dynamic list, no cache
     const quoteNorm = normalizeStablecoin(quote);
 
     const key = cacheKey(base, quote);
-    const cached = priceCache.get(key);
+    const baseUpper = baseNorm.toUpperCase();
+    const baseLower = baseNorm.toLowerCase();
 
-    if (cached && now() - cached.timestamp < CACHE_TTL) {
-      return cached;
-    }
+    const isFX = fxCache.has(baseUpper);
+    const isStable = !!STABLECOINS[baseUpper];
+    const isCrypto = !!cryptoCache[baseLower];
+
+    const shouldCache = isFX || isStable || isCrypto;
+
+    if (shouldCache) {
+      const cached = priceCache.get(key);
+        if (cached && now() - cached.timestamp < CACHE_TTL) {
+            return cached;
+              }
+              }
 
     await loadCryptoCache();
     const apiKey = process.env.FINNHUB_API_KEY || "";
@@ -333,7 +343,14 @@ quote: quoteNorm.toUpperCase(),
 data: payload,
 timestamp: now()
 };
-priceCache.set(key, response); // cache crypto
+if (
+    fxCache.has(baseNorm.toUpperCase()) ||
+    STABLECOINS[baseNorm.toUpperCase()] ||
+    cryptoCache[baseNorm.toLowerCase()]
+   ) {
+    priceCache.set(key, response);
+     }
+
 return response;
 } else {
 // Stock branch — no cache
