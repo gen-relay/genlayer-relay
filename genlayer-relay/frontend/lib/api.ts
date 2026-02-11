@@ -52,7 +52,7 @@ export interface RandomResponse {
 }
 
 // ----------------- BASE URL -----------------
-const BASE_URL = ""; // same origin
+const BASE_URL = "/api";
 
 // ----------------- HELPER -----------------
 const handleRequest = async <T>(fn: () => Promise<T>, fallback?: T): Promise<T> => {
