@@ -136,26 +136,26 @@ button:disabled {
   background: rgba(0, 180, 255, 0.95);
 }
 
-/* =========================================================
+/* ==============
    RESULT DISPLAY
-   ========================================================= */
-.result-display {
-  margin-top: clamp(0.3rem, 1vh, 0.6rem);
-  padding: clamp(0.45rem, 1.2vw, 0.7rem);
-  background: rgba(255,255,255,0.08);
-  border-radius: clamp(0.35rem, 1vw, 0.6rem);
-  font-weight: 600;
-  text-align: center;
-  min-height: clamp(2.2rem, 6vh, 3.2rem);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
+   =========== */
+.result-display, .price-result, .price-details {
+   margin-top: clamp(0.3rem, 1vh, 0.6rem);  
+   padding-left: clamp(1rem, 2vw, 1.5rem);
+   padding-top: clamp(0.3rem, 0.8vh, 0.5rem);
+   padding-bottom: clamp(0.3rem, 0.8vh, 0.5rem);
+   background: rgba(255,255,255,0.08);
+   border-radius: clamp(0.35rem, 1vw, 0.6rem);
+   font-weight: 600;
+   text-align: left !important; 
+   display: block;               /* block layout */
+   min-height: clamp(2.2rem, 6vh, 3.2rem); 
+                                               }
 
 .price-line {
-    margin-bottom: 16px;
-    }
-    
+   margin-bottom: clamp(0.8rem, 2vh, 1rem); 
+            }
+
 /* =========================================================
    PREMIUM GLOW
    ========================================================= */
