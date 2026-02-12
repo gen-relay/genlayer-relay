@@ -5,6 +5,7 @@ import { premiumApi } from "./premium/premiumApi";
 import SearchableDropdown from "./components/SearchableDropdown";
 import "./App.css";
 import { cryptoSymbolMap } from "./lib/cryptoMap";
+import { weatherKeyMap } from "./lib/weatherMap";
 
 function App() {
   const [price, setPrice] = useState<string>(""); 
@@ -26,7 +27,8 @@ function App() {
   const [loadingSign, setLoadingSign] = useState(false);
   const [loadingVerify, setLoadingVerify] = useState(false);
   const [loadingPremium, setLoadingPremium] = useState(false);
-  const [city, setCity] = useState("London");
+  const [city, setCity] = useState("LONDON");
+  const [lastWeatherResponse, setLastWeatherResponse] = useState<any | null>(null);
 
   const [lastPriceResponse, setLastPriceResponse] = useState<PriceData | null>(null)
 
@@ -69,15 +71,15 @@ const fetchPrice = async () => {
 
   setLastPriceResponse(res.data) 
 
-  // -------------------------
-  // Display logic
-  // -------------------------
+  // --------------
+  // Display
+  // -------------
   const displayPrice = res.data?.price ?? null
 
   if (displayPrice === null) {
   setPrice("Price not available ❌")
   } else {
-  setPrice(`${base.toUpperCase()}/${quote.toUpperCase()}: ${displayPrice} - - -`)
+  setPrice(`${base.toUpperCase()}/${quote.toUpperCase()}: ${displayPrice} - - - |`)
   }
   } catch (err) {
   console.error(" FETCH ERROR:", err)
@@ -87,24 +89,32 @@ const fetchPrice = async () => {
   setLoadingPrices(false)
   }
 
-  /* -------------------------------------------------
+  /* -----------
    * WEATHER
-   * ------------------------------------------------- */
+   * ------------ */
   const fetchWeather = async () => {
     setLoadingWeather(true);
-    const data = await api.getWeather(city);
-    if (data?.status === "ok" && data.data?.main) {
-      const t = data.data.main.temp;
-      const f = data.data.main.feels_like;
-      const desc = data.data.weather?.[0]?.description || "";
-      setWeather(`${city}: ${t}°C (feels like ${f}°C) - ${desc}`);
-    } else { setWeather("Weather info not available"); }
-    setLoadingWeather(false);
-  };
+    setWeather(""); 
+    setLastWeatherResponse(null);
 
-  /* -------------------------------------------------
+    try {
+    const data = await api.getWeather(city);
+    if (data?.status === "ok" && data.data) {
+    setLastWeatherResponse(data.data); 
+    setWeather(`${city}: ${data.data.main.temp}°C - ${data.data.weather?.[0]?.description || ""}`);
+    } else {
+    setWeather("Weather info not available ");
+    }
+    } catch (err) {
+    console.error(err);
+    setWeather("Failed to fetch weather ");
+    }
+    setLoadingWeather(false);
+    };
+ 
+  /* ------------
    * RANDOM
-   * ------------------------------------------------- */
+   * ----------- */
   const fetchRandom = async () => {
     setLoadingRandom(true);
     const data = await api.getRandom();
@@ -112,9 +122,9 @@ const fetchPrice = async () => {
     setLoadingRandom(false);
   };
 
-  /* -------------------------------------------------
+  /* ----------
    * SIGN & VERIFY
-   * ------------------------------------------------- */
+   * ---------- */
   const handleSign = async () => {
     setLoadingSign(true);
     const res: SignResponse = await api.signMessage(message, secret);
@@ -229,17 +239,53 @@ const fetchPrice = async () => {
      </div>
      </section>
 
-        {/* Weather */}
-        <section>
-          <h2>☀️ Weather</h2>
-          <div className="controlled-row">
-            <input type="text" value={city} onChange={e=>setCity(e.target.value)} placeholder="City"/>
-            <button onClick={fetchWeather} disabled={loadingWeather}>
-              {loadingWeather ? "Loading..." : "Get Weather"}
-            </button>
-          </div>
-          <div className="result-display">{weather}</div>
-        </section>
+  {/* Weather */}
+  <section>
+  <h2>☀️ Weather</h2>
+  <div className="controlled-row">
+  <input type="text" value={city} onChange={e => setCity(e.target.value)} placeholder="City"/>
+  <button onClick={fetchWeather} disabled={loadingWeather}>
+  {loadingWeather ? "Loading..." : "Get Weather"}
+  </button>
+  </div>
+  <div className="result-display price-result">
+  {weather && <div className="price-line">{weather}</div>}
+  {lastWeatherResponse && (
+  <div
+  className="price-details"
+  style={{
+  textAlign: "left",
+  margin: 0,
+  padding: 0
+  }}
+  >
+  {Object.entries(lastWeatherResponse).map(([key, value]) => {
+  const friendlyKey = weatherKeyMap[key] || key;
+  if (typeof value === "object" && value !== null) {
+  return (
+  <div key={key} style={{ margin: 0, padding: 0 }}>
+  <div style={{ fontWeight: "bold" }}>{friendlyKey}:</div>
+  {Object.entries(value).map(([subKey, subValue]) => {
+  const subFriendlyKey = weatherKeyMap[subKey] || subKey;
+  return (
+  <div key={subKey} style={{ margin: 0, padding: 0 }}>
+  {subFriendlyKey}: {typeof subValue === "number" ? subValue.toLocaleString() : String(subValue)}
+  </div>
+  );
+  })}
+  </div>
+  );
+  }
+  return (
+  <div key={key} style={{ margin: 0, padding: 0 }}>
+  <strong>{friendlyKey}:</strong> {typeof value === "number" ? value.toLocaleString() : String(value)}
+  </div>
+  );
+  })}
+  </div>
+  )}
+  </div>
+  </section>
 
         {/* Random */}
         <section>
