@@ -185,7 +185,7 @@ const fetchPrice = async () => {
             {price && <button onClick={copyPrice} className="copy-btn">📋 Copy</button>}
           </div>
      <div className="result-display price-result">
-     {price}
+     {price && <div className="price-line">{price}</div>}
 
      {lastPriceResponse && (
      <div
