@@ -1,87 +1,254 @@
 import { FastifyPluginAsync } from "fastify";
 import { getFX } from "./prices_modules/fx";
 import { getCrypto, getCryptoList } from "./prices_modules/crypto";
-import { normalizeStablecoin } from "./prices_modules/stables";
+import { normalizeStablecoin, getStablecoin } from "./prices_modules/stables";
 import { getStock } from "./prices_modules/stocks";
 
 const now = () => Math.floor(Date.now() / 1000);
+const nowMs = () => Date.now();
+
+const FX_CURRENCIES = new Set([
+  "USD","EUR","GBP","JPY","AUD",
+  "CAD","CHF","CNY","NZD","SEK"
+]);
+
+const isObject = (v: unknown): v is Record<string, unknown> =>
+  typeof v === "object" && v !== null;
+
+/* =========================================================
+   RATE LIMITING (Sliding Window, In-Memory)
+   ========================================================= */
+
+interface RateLimitBucket {
+  timestamps: number[];
+}
+
+const RATE_LIMIT_WINDOW_MS = 60_000; // 1 minute
+const RATE_LIMIT_MAX_REQUESTS = 60;  // 60 requests per minute
+
+const rateLimitStore = new Map<string, RateLimitBucket>();
+
+function cleanOldRequests(bucket: RateLimitBucket, now: number) {
+  bucket.timestamps = bucket.timestamps.filter(
+    (ts) => now - ts < RATE_LIMIT_WINDOW_MS
+  );
+}
+
+function checkRateLimit(key: string): boolean {
+  const currentTime = nowMs();
+
+  let bucket = rateLimitStore.get(key);
+
+  if (!bucket) {
+    bucket = { timestamps: [] };
+    rateLimitStore.set(key, bucket);
+  }
+
+  cleanOldRequests(bucket, currentTime);
+
+  if (bucket.timestamps.length >= RATE_LIMIT_MAX_REQUESTS) {
+    return false;
+  }
+
+  bucket.timestamps.push(currentTime);
+  return true;
+}
+
+// Memory cleanup every 5 minutes
+setInterval(() => {
+  const currentTime = nowMs();
+  for (const [key, bucket] of rateLimitStore.entries()) {
+    cleanOldRequests(bucket, currentTime);
+    if (bucket.timestamps.length === 0) {
+      rateLimitStore.delete(key);
+    }
+  }
+}, 5 * 60 * 1000);
+
+/* =========================================================
+   ROUTES
+   ========================================================= */
 
 export const pricesRoutes: FastifyPluginAsync = async (fastify) => {
 
-  // GET /api/prices?base=X&quote=Y
+  async function resolvePrice(base: string, quote: string) {
+
+    const baseNorm = normalizeStablecoin(base);
+    const quoteNorm = normalizeStablecoin(quote || "USD");
+
+    const baseUpper = baseNorm.toUpperCase();
+    const quoteUpper = quoteNorm.toUpperCase();
+
+    // ---------- FX ----------
+    if (FX_CURRENCIES.has(baseUpper)) {
+      return {
+        base: baseUpper,
+        quote: quoteUpper,
+        data: await getFX(baseUpper, quoteUpper)
+      };
+    }
+
+    // ---------- STABLE ----------
+    try {
+      const stable = await getStablecoin(baseUpper);
+      return {
+        base: baseUpper,
+        quote: quoteUpper,
+        data: stable
+      };
+    } catch {
+      // continue
+    }
+
+    // ---------- CRYPTO ----------
+    const cryptoMap = await getCryptoList();
+    const coin = cryptoMap[baseUpper.toLowerCase()];
+
+    if (coin) {
+      const crypto = await getCrypto(coin.id, quoteUpper);
+      return {
+        base: baseUpper,
+        quote: quoteUpper,
+        data: crypto
+      };
+    }
+
+    // ---------- STOCK ----------
+    const apiKey = process.env.FINNHUB_API_KEY;
+
+    if (!apiKey) {
+      throw new Error(
+        "Stock pricing unavailable (FINNHUB_API_KEY missing)"
+      );
+    }
+
+    const stock = await getStock(baseUpper, apiKey);
+
+    return {
+      base: baseUpper,
+      quote: quoteUpper,
+      data: stock
+    };
+  }
+
+  /* =========================================================
+     GLOBAL RATE LIMIT HOOK
+     ========================================================= */
+
+  fastify.addHook("onRequest", async (req, reply) => {
+
+    const ip =
+      req.ip ||
+      (req.headers["x-forwarded-for"] as string) ||
+      "unknown";
+
+    const allowed = checkRateLimit(ip);
+
+    if (!allowed) {
+      reply.code(429);
+      return reply.send({
+        status: "error",
+        message: "Rate limit exceeded. Try again later."
+      });
+    }
+  });
+
+  /* =========================================================
+     GET /api/prices?base=X&quote=Y
+     ========================================================= */
+
   fastify.get("/", async (req, reply) => {
     try {
-      const { base, quote } = req.query as { base?: string; quote?: string };
 
-      if (!base) {
+      const query = req.query as unknown;
+
+      if (!isObject(query) || typeof query.base !== "string") {
         reply.code(400);
-        return { status: "error", message: "Missing base asset" };
+        return {
+          status: "error",
+          message: "Missing or invalid base asset"
+        };
       }
 
-      const baseNorm = normalizeStablecoin(base);
-      const quoteNorm = normalizeStablecoin(quote || "USD");
+      const base = query.base;
+      const quote =
+        typeof query.quote === "string" ? query.quote : "USD";
 
-      const baseUpper = baseNorm.toUpperCase();
-      const quoteUpper = quoteNorm.toUpperCase();
-
-      let payload;
-
-      // ---------- FX ----------
-      const fxCurrencies = ["USD","EUR","GBP","JPY","AUD","CAD","CHF","CNY","NZD","SEK"];
-
-      if (fxCurrencies.includes(baseUpper)) {
-        payload = await getFX(baseUpper, quoteUpper);
-      }
-
-      // ---------- CRYPTO ----------
-      else {
-        const cryptoMap = await getCryptoList();
-        const coin = cryptoMap[baseUpper.toLowerCase()];
-
-        if (coin) {
-          payload = await getCrypto(coin.id, quoteUpper);
-        }
-
-        // ---------- STOCK ----------
-        else {
-          const apiKey = process.env.FINNHUB_API_KEY;
-
-          if (!apiKey) {
-            reply.code(400);
-            return {
-              status: "error",
-              message: "Stock pricing unavailable (FINNHUB_API_KEY missing)"
-            };
-          }
-
-          payload = await getStock(baseUpper, apiKey);
-        }
-      }
+      const result = await resolvePrice(base, quote);
 
       return {
         status: "ok",
-        base: baseUpper,
-        quote: quoteUpper,
-        data: payload,
+        base: result.base,
+        quote: result.quote,
+        data: result.data,
         timestamp: now()
       };
 
-    } catch (err: any) {
+    } catch (err: unknown) {
+
+      const message =
+        isObject(err) && typeof err.message === "string"
+          ? err.message
+          : "Internal Server Error";
+
       reply.code(500);
+
       return {
         status: "error",
-        message: err.message || "Internal Server Error"
+        message
       };
     }
   });
 
-  // GET /api/prices/:base/:quote
+  /* =========================================================
+     GET /api/prices/:base/:quote
+     ========================================================= */
+
   fastify.get("/:base/:quote", async (req, reply) => {
-    const { base, quote } = req.params as { base: string; quote: string };
-    return fastify.inject({
-      method: "GET",
-      url: `/api/prices?base=${base}&quote=${quote}`
-    });
+
+    const params = req.params as unknown;
+
+    if (
+      !isObject(params) ||
+      typeof params.base !== "string" ||
+      typeof params.quote !== "string"
+    ) {
+      reply.code(400);
+      return {
+        status: "error",
+        message: "Invalid route parameters"
+      };
+    }
+
+    try {
+
+      const result = await resolvePrice(
+        params.base,
+        params.quote
+      );
+
+      return {
+        status: "ok",
+        base: result.base,
+        quote: result.quote,
+        data: result.data,
+        timestamp: now()
+      };
+
+    } catch (err: unknown) {
+
+      const message =
+        isObject(err) && typeof err.message === "string"
+          ? err.message
+          : "Internal Server Error";
+
+      reply.code(500);
+
+      return {
+        status: "error",
+        message
+      };
+    }
   });
 
 };

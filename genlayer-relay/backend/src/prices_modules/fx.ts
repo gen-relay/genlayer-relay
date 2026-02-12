@@ -63,7 +63,8 @@ async function fetchRate(
       params: { base, symbols },
       timeout: 10000
     });
-
+    console.log(`[FX DEBUG] base=${base} symbols=${symbols} res.data=`, res.data);
+    
     assertValidResponse(res.data);
     return res.data;
 
