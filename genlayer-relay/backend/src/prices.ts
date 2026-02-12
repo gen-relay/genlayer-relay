@@ -199,7 +199,39 @@ export const pricesRoutes: FastifyPluginAsync = async (fastify) => {
       };
     }
   });
+  /* =========
+  GET /api/prices/options
+  Fully dynamic dropdown options
+     ========= */
+     fastify.get("/options", async () => {
+     // ---------- CRYPTO ----------
+     const cryptoMap = await getCryptoList(); // already dynamic from your backend module
+     const cryptoOptions = Object.keys(cryptoMap).map(k => k.toUpperCase());
 
+       // ---------- FX ----------
+       const fxOptions = Array.from(FX_CURRENCIES); // use your FX_CURRENCIES set
+
+       // ---------- STOCKS (dynamic) ----------
+       let stocksOptions: string[] = [];
+       const apiKey = process.env.FINNHUB_API_KEY;
+       if (apiKey) {
+       try {
+       const res = await fetch(`https://finnhub.io/api/v1/stock/symbol?exchange=US&token=${apiKey}`);
+       const data = await res.json();
+       stocksOptions = data.map((s: any) => s.symbol.toUpperCase());
+       } catch (err) {
+       console.error("Failed to fetch stocks options dynamically:", err);
+       stocksOptions = ["AAPL","TSLA","MSFT","GOOGL","AMZN"]; // fallback
+       }
+       }
+
+       return {
+       status: "ok",
+       crypto: cryptoOptions,
+       fx: fxOptions,
+       stocks: stocksOptions,
+       };
+       });
   /* =========================================================
      GET /api/prices/:base/:quote
      ========================================================= */
