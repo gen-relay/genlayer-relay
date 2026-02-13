@@ -15,12 +15,12 @@ export interface FXPrice {
   };
 }
 
-interface ExchangeRateResponse {
-  success?: boolean;
+interface FrankfurterResponse {
+  amount: number;
   base: string;
-  date?: string;
+  date: string;
   rates: Record<string, number>;
-}
+  }
 
 const FX_URL = "https://api.frankfurter.app/latest";
 const FX_API_KEY = process.env.FX_API_KEY;
@@ -30,16 +30,35 @@ const now = () => Math.floor(Date.now() / 1000);
 const isValidNumber = (n: unknown): n is number =>
   typeof n === "number" && Number.isFinite(n);
 
-function assertValidResponse(data: unknown): asserts data is ExchangeRateResponse {
+function assertValidResponse(
+  data: unknown
+  ): asserts data is { base: string; rates: Record<string, number> } {
   if (
-    !data ||
-    typeof data !== "object" ||
-    !("rates" in data) ||
-    typeof (data as any).rates !== "object"
+  !data ||
+  typeof data !== "object"
   ) {
-    throw new Error("Invalid FX provider response structure");
+  throw new Error("Invalid FX response: not an object");
   }
-}
+
+  const d = data as Record<string, unknown>;
+
+  if (typeof d.base !== "string") {
+  throw new Error("Invalid FX response: missing base");
+  }
+
+  if (
+  !d.rates ||
+  typeof d.rates !== "object"
+  ) {
+  throw new Error("Invalid FX response: missing rates");
+  }
+
+  for (const value of Object.values(d.rates)) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+  throw new Error("Invalid FX response: invalid rate value");
+  }
+  }
+  }
 
 /**
  * Structural runtime guard for Axios-like errors.
@@ -58,42 +77,45 @@ function isAxiosLikeError(
 async function fetchRate(
   base: string,
   symbols: string
-): Promise<ExchangeRateResponse> {
+  ): Promise<ExchangeRateResponse> {
   try {
-    const res = await axios.get<ExchangeRateResponse>(FX_URL, {
-    params: { 
-    base, 
-    symbols,
-    access_key: FX_API_KEY 
-            },
-    timeout: 10000
-    });
-    console.log(`[FX DEBUG] base=${base} symbols=${symbols} res.data=`, res.data);
-    
-    assertValidResponse(res.data);
-    return res.data;
+  const url = `${FX_URL}?from=${base}&to=${symbols}`;
+
+  const res = await axios.get<FrankfurterResponse>(url, {
+  timeout: 10000
+  });
+
+  console.log(
+  `[FX DEBUG] base=${base} symbols=${symbols} res.data=`,
+  res.data
+  );
+
+  if (!res.data || !res.data.rates) {
+  throw new Error("Invalid FX provider response");
+  }
+
+  return {
+  base: res.data.base,
+  rates: res.data.rates
+  };
 
   } catch (err: unknown) {
 
-    if (isAxiosLikeError(err)) {
-      const status = err.response?.status;
+  if (isAxiosLikeError(err)) {
+  const status = err.response?.status;
 
-      if (status === 429) {
-        throw new Error("FX provider rate limit exceeded");
-      }
-
-      if (status === 401) {
-        throw new Error("FX provider authentication error");
-      }
-
-      throw new Error(
-        `FX provider HTTP error: ${status ?? "network failure"}`
-      );
-    }
-
-    throw new Error("Unknown error while fetching FX rate");
+  if (status === 429) {
+  throw new Error("FX provider rate limit exceeded");
   }
-}
+
+  throw new Error(
+  `FX provider HTTP error: ${status ?? "network failure"}`
+  );
+  }
+
+  throw new Error("Unknown error while fetching FX rate");
+  }
+  }
 
 export async function getFX(
   base: string,
