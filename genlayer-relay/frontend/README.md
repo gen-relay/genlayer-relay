@@ -1,73 +1,87 @@
-# React + TypeScript + Vite
+# 🌐 GenLayer Relay – Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Welcome to the user-facing layer of **GenLayer Relay**.
 
-Currently, two official plugins are available:
+If the backend is the engine, this is the dashboard.  
+If the backend is the oracle, this is the crystal ball UI.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+This frontend provides a clean, structured interface for interacting with external data services designed to support **Intelligent Contracts** on GenLayer.
 
-## React Compiler
+It transforms raw API responses into readable, understandable, and usable information.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
+# 🧠 What This Frontend Does
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+This application acts as a **visual interaction layer** for the GenLayer Relay backend.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+It allows users to:
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+- 💱 View foreign exchange rates  
+- ₿ View cryptocurrency pricing  
+- 📈 View stock data  
+- 🌦 Retrieve structured weather data  
+- 🎲 Generate cryptographically secure randomness  
+- 🔐 Sign messages  
+- ✅ Verify signatures  
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+In short:
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+> It makes off-chain infrastructure visible, testable, and human-friendly.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+---
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+# 🏗 Architectural Philosophy
+
+This frontend was built with intentional separation of concerns and extensibility in mind.
+
+## Core Principles
+
+- **UI components are isolated**
+- **API logic is separated from presentation**
+- **Types are shared and explicit**
+- **Error states are handled intentionally**
+- **Loading states are never ignored**
+- **Timestamps are human-readable**
+
+The goal was not just to “fetch and render,”  
+but to demonstrate clean integration patterns suitable for real-world GenLayer applications.
+
+ 
+ # 🔄 Data Flow Design
+
+ The frontend follows a clean data flow pattern:
+
+ 1. User interaction triggers a request
+ 2. Service layer calls backend endpoint
+ 3. Structured JSON is returned
+ 4. Types validate structure
+ 5. UI renders formatted response
+ 6. Errors and loading states are handled explicitly
+
+ No silent failures.  
+ No hidden assumptions.  
+ No magic.
+
+ ---
+
+ # Backend Integration Pattern
+
+ All external data comes from the GenLayer Relay backend.
+
+ Example fetch structure:
+
+ ```ts
+ fetch("/api/fx?base=CAD&quote=USD")...
+
+ ---
+
+ ## *why This Matters for GenLayer*
+
+   GenLayer introduces Intelligent Contracts that require structured interaction with external data.
+   This frontend:
+   Demonstrates practical consumption of external relay services
+   Provides a UX layer for Intelligent Contract tooling
+   Encourages modular and scalable infrastructure thinking
+   Bridges developer experience and protocol capability
+   It shows how off-chain infrastructure can be surfaced cleanly and responsibly.
